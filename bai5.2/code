@@ -1,0 +1,129 @@
+using System;
+using System.Collections.Generic;
+using System.Windows.Forms;
+using MySql.Data.MySqlClient;
+
+namespace HỌC_VIÊN_28_10
+{
+    public partial class Form1 : Form
+    {
+        public Form1()
+        {
+            InitializeComponent();
+            btnRegister.Click += btnRegister_Click;
+            LoadCourseData();
+        }
+
+        // Sự kiện Form_Load: Nơi tốt nhất để nạp dữ liệu vào ComboBox khi mở Form
+        private void Form1_Load(object? sender, EventArgs? e)
+        {
+            LoadCourseData();
+        }
+
+        // 1. Hàm nạp danh sách Khóa học sử dụng Binding Data (DisplayMember, ValueMember)
+        private void LoadCourseData()
+        {
+            // Tạo một danh sách các khóa học mẫu sử dụng một Class ẩn (Anonymous Type)
+            var courses = new[]
+            {
+                new { CourseID = "C01", CourseName = "Lập trình C# Windows Forms" },
+                new { CourseID = "C02", CourseName = "Quản trị Cơ sở dữ liệu MySQL" },
+                new { CourseID = "C03", CourseName = "Phát triển Ứng dụng Web ASP.NET" },
+                new { CourseID = "C04", CourseName = "Lập trình Di động Flutter" }
+            };
+
+            // Gán nguồn dữ liệu cho ComboBox
+            cboCourse.DataSource = courses;
+
+            // Thuộc tính hiển thị lên màn hình cho người dùng chọn
+            cboCourse.DisplayMember = "CourseName";
+
+            // Giá trị ẩn bên dưới hệ thống dùng để quản lý (Ví dụ lưu vào Database)
+            cboCourse.ValueMember = "CourseID";
+        }
+
+        // 2. Sự kiện khi người dùng bấm nút "Đăng ký"
+        private void btnRegister_Click(object? sender, EventArgs? e)
+        {
+            // 1. Kiểm tra điều khoản
+            if (!chkAgree.Checked)
+            {
+                MessageBox.Show("Bạn phải tích chọn đồng ý với điều khoản trước khi đăng ký!", "Cảnh báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // 2. Thu thập dữ liệu từ giao diện
+            string phone = mtxtPhone.Text.Trim();
+
+            // MySQL yêu cầu định dạng ngày là yyyy-MM-dd để lưu chính xác vào cột kiểu DATE
+            string birthDateForDB = dtpBirthDate.Value.ToString("yyyy-MM-dd");
+            string birthDateForShow = dtpBirthDate.Value.ToString("dd/MM/yyyy");
+
+            string gender = radMale.Checked ? "Nam" : "Nữ";
+            string selectedCourseText = cboCourse.Text;
+            string selectedCourseValue = cboCourse.SelectedValue?.ToString() ?? "";
+
+            // Kiểm tra nhanh nếu số điện thoại trống (chỉ chứa các ký tự mask)
+            if (phone == "()" || string.IsNullOrWhiteSpace(phone))
+            {
+                MessageBox.Show("Vui lòng nhập số điện thoại!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // 3. Tiến hành lưu dữ liệu vào MySQL XAMPP
+            // Chuỗi kết nối dùng chung với bài trước
+            string connectionString = "Server=localhost;Database=hocvien_db;Uid=root;Pwd=;";
+            string query = "INSERT INTO registrations (phone, birthdate, gender, course_id) VALUES (@phone, @birthdate, @gender, @course_id)";
+
+            using (MySqlConnection conn = new MySqlConnection(connectionString))
+            {
+                try
+                {
+                    conn.Open();
+                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    {
+                        // Gán tham số chống SQL Injection
+                        cmd.Parameters.AddWithValue("@phone", phone);
+                        cmd.Parameters.AddWithValue("@birthdate", birthDateForDB);
+                        cmd.Parameters.AddWithValue("@gender", gender);
+                        cmd.Parameters.AddWithValue("@course_id", selectedCourseValue);
+
+                        // Thực thi câu lệnh Insert
+                        int rowsAffected = cmd.ExecuteNonQuery();
+
+                        if (rowsAffected > 0)
+                        {
+                            // 4. Nếu lưu DB thành công thì mới thông báo cho người dùng
+                            string info = $"--- ĐĂNG KÝ THÀNH CÔNG & ĐÃ LƯU DATABASE ---\n\n" +
+                                          $"+ Số điện thoại: {phone}\n" +
+                                          $"+ Ngày sinh: {birthDateForShow}\n" +
+                                          $"+ Giới tính: {gender}\n" +
+                                          $"+ Khóa học: {selectedCourseText} (Mã: {selectedCourseValue})";
+
+                            MessageBox.Show(info, "Kết Quả Đăng Ký", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Lỗi lưu cơ sở dữ liệu: " + ex.Message, "Lỗi Hệ Thống", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+        private void chkAgree_CheckedChanged(object? sender, EventArgs? e)
+        {
+            // Để trống
+        }
+
+        private void maskedTextBox1_MaskInputRejected(object? sender, MaskInputRejectedEventArgs? e)
+        {
+            // Để trống
+        }
+
+        private void radFemale_CheckedChanged(object? sender, EventArgs? e)
+        {
+            // Để trống
+        }
+
+    }
+}
